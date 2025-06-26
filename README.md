@@ -1,6 +1,6 @@
-# Espense-Tracker-Backend
+# Event-Booking-Backend
 
-A simple and modular Node.js blogging platform.
+A simple and modular Node.js booing event platform.
 
 ## 🔧 Requirements
 
@@ -103,5 +103,4 @@ Visit: `http://localhost:8080`
 ### 📝 Notes
 
 * Ensure MongoDB is accessible using your connection string.
-* The project supports multiple languages via the `translations` folder.
 * File upload limit is set to 50MB.
