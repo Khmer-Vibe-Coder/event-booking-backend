@@ -51,135 +51,6 @@ const login = async (req, res) => {
   }
 };
 
-const setUpPassword = async (req, res) => {
-  try {
-    const { id, email, password, token } = req.body;
-
-    const appUser = await AppUser.findOne({ email: email }).catch((error) => {
-      throw error;
-    });
-
-    if (!util.notEmpty(appUser)) {
-      return util.ResFail(req, res, "User not found.");
-    }
-
-    const hashedToken = util.hashToken(token);
-    const tokenSetUpPassword = await PasswordSetUpTokenModel.findOne({
-      hashedToken,
-      expiresAt: { $gt: new Date() },
-    });
-
-    if (util.isEmpty(tokenSetUpPassword)) {
-      return util.ResFail(req, res, "Invalid token or token expired.");
-    }
-
-    // Hash password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    const user = await AppUser.findOneAndUpdate(
-      {
-        email,
-      },
-      {
-        password: hashedPassword,
-        passwordChangedAt: new Date(),
-      }
-    );
-
-    await PasswordSetUpTokenModel.deleteMany({ appUserId: user._id });
-
-    if (util.notEmpty(user)) {
-      // ADD: Create default data for the user
-      return util.ResSuss(
-        req,
-        res,
-        null,
-        "Account set up password successfully!"
-      );
-    }
-
-    return util.ResFail(
-      req,
-      res,
-      "Failed to set up password as our user. Please try it again later!"
-    );
-  } catch (error) {
-    console.error("Register route error:", error);
-    return util.ResFail(
-      req,
-      res,
-      "An error occurred during registration. Please try again."
-    );
-  }
-};
-
-const requestLinkSetUpPassword = async (req, res) => {
-  try {
-    const { email } = req.query;
-
-    const user = await AppUser.findOne({ email });
-    if (util.isEmpty(user)) {
-      return util.ResFail(req, res, "User not found.");
-    }
-
-    const existingToken = await PasswordSetUpTokenModel.findOne({ appUserId: user._id });
-
-    if (existingToken &&(Date.now() - existingToken.createdAt < 60000) ){
-      return util.ResFail(
-        req,
-        res,
-        "Please wait 60 seconds before requesting another set up password."
-      );
-    }
-      await PasswordSetUpTokenModel.deleteMany({
-        appUserId: user._id,
-      });
-
-    const resetToken = util.generateResetToken();
-    const hashedToken = util.hashToken(resetToken);
-
-    await PasswordSetUpTokenModel.create({
-      appUserId: user._id,
-      token: resetToken.substring(0, 8),
-      hashedToken: hashedToken,
-      createdAt: Date.now()
-    });
-
-        // Create reset URL
-    const resetUrl = `${
-      process.env.FRONTEND_URL || "http://localhost:3000"
-    }/auth/set-up-password?token=${resetToken}&email=${user.email}`;
-
-    // Send email
-    const transporter = mailer.createEmailTransporter();
-    const emailTemplate = mailer.getPasswordSetUpEmailTemplate(resetUrl, user.email, 24)
-
-    await transporter.sendMail({
-      from: `"Your Expense Tracker" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-      text: emailTemplate.text,
-    });
-
-    return util.ResSuss(
-      req,
-      res,
-      null,
-      "Set up password request link successfully. Please check your email."
-    );
-  } catch (error) {
-    console.log(error);
-    
-    return util.ResFail(
-      req,
-      res,
-      "An error occurred during request. Please try again."
-    );
-  }
-};
-
 const resetPassword = async (req, res) => {
   try {
     const { token, email, newPassword } = req.body;
@@ -389,9 +260,7 @@ const forgotPassword = async (req, res) => {
 
 module.exports = {
   login,
-  setUpPassword,
   resetPassword,
   verifyResetToken,
   forgotPassword,
-  requestLinkSetUpPassword,
 };

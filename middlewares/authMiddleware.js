@@ -26,7 +26,7 @@ const authenticate = async (req, res, next) => {
         const user = await UserModel.findOne({ _id: util.objectId(decoded.id) }).catch(error => { throw error });
 
         if (util.isEmpty(user)) {
-            return util.ResFail(req, res, 'User not found.', 401);
+            return util.ResFail(req, res, 'Unauthorized. Invalid Token', 401);
         }
 
         req.user = user;

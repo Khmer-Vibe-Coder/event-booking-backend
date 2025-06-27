@@ -14,16 +14,6 @@ const AppSchema = mongoose.Schema(
       default: null,
     },
 
-    retries: {
-      type: Number,
-      default: 0,
-    },
-
-    lastSubmittedAt: {
-      type: Date,
-      default: Date.now,
-    },
-
     username: {
       type: String,
       required: [true, "Username is required"],
@@ -53,15 +43,19 @@ const AppSchema = mongoose.Schema(
         message: "Invalid email format",
       },
     },
+    phone: {
+      type: String,
+      required: [true, "Phone is required"]
+    },
     actionBy: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,
       ref: "admin_users",
-    },
+    }
   },
   {
     timestamps: { createdAt: "createdAt", updatedAt: "updatedAt" },
   }
 );
 
-module.exports = db.model("app_users_request", AppSchema);
+module.exports = db.model("admin_users_request", AppSchema);

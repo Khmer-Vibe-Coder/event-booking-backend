@@ -3,7 +3,7 @@ const { db, mongoose } = require("./settings/connection")
 
 
 const passwordSetUpTokenSchema = new mongoose.Schema({
-  appUserId: {
+  adminUserId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
     ref: 'app_users'

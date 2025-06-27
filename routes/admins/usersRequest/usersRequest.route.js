@@ -4,9 +4,9 @@ const Operations = require("./usersRequest.operation");
 
 const router = express.Router();
 
-router.post("/register", Operations.register);
-
 router.use(authenticate);
+
+router.post("/register", Operations.register);
 
 router.get("/", Operations.getUsersRequest);
 

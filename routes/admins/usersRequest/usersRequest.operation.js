@@ -1,14 +1,15 @@
 const AppUsersModel = require("../../../models/AppUsers.model");
 const util = require("../../../exports/util");
-const AppUsersRequestModel = require("../../../models/AppUsersRequest.model");
 const PasswordResetTokenModel = require("../../../models/PasswordResetToken.model");
 const PasswordSetUpTokenModel = require("../../../models/PasswordSetUpToken.model");
 const mailer = require("../../../exports/mailer");
 const AdminUsersModel = require("../../../models/AdminUsers.model");
+const AdminUsersRequestModel = require("../../../models/AdminUsersRequest.model");
+const RoleModel = require("../../../models/Role.model");
 
 const register = async (req, res) => {
   try {
-    const { firstName, lastName, email, terms, consents } = req.body;
+    const { firstName, lastName, email, phone, terms, consents } = req.body;
 
     if (!util.validateEmail(email)) {
       return util.ResFail(req, res, "Invalid email format!");
@@ -23,12 +24,13 @@ const register = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const existingRequest = await AppUsersRequestModel.findOne({
+
+    const existingRequest = await AdminUsersRequestModel.findOne({
       email: normalizedEmail,
     });
 
     // get email system admin
-    const adminAccount = await AdminUsersModel.findOne({ isSystemAdmin: true });
+    const adminAccount = await AdminUsersModel.findOne({ isSuperAdmin: true });
 
     // Check if already exists
     if (existingRequest) {
@@ -50,10 +52,6 @@ const register = async (req, res) => {
 
       if (existingRequest.status === "rejected") {
         // Allow re-request only after 24h
-        // const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        // if (existingRequest.updatedAt > oneDayAgo) {
-        //   return util.ResFail(req, res, "You can re-submit your request 24 hours after the last rejection.");
-        // }
 
         // Update the rejected record to pending again
         existingRequest.firstName = firstName;
@@ -61,8 +59,8 @@ const register = async (req, res) => {
         existingRequest.username = `${firstName} ${lastName}`;
         existingRequest.status = "pending";
         existingRequest.rejectReason = null;
-        existingRequest.retries = (existingRequest.retries || 0) + 1;
-        existingRequest.lastSubmittedAt = new Date();
+        existingRequest.actionBy = null
+        existingRequest.phone = phone
         const resubmitUser = await existingRequest.save();
 
         // Optionally: notify admin again here
@@ -75,8 +73,8 @@ const register = async (req, res) => {
 
         // send email to system admin
         await transporter.sendMail({
-          from: `"Your Expense Tracker" <${process.env.EMAIL_USER}>`,
-          to: adminAccount?.email || "Admin",
+          from:process.env.EMAIL_USER,
+          to: process.env.EMAIL_USER,
           subject: emailTemplate.subject,
           html: emailTemplate.html,
           text: emailTemplate.text,
@@ -92,13 +90,13 @@ const register = async (req, res) => {
     }
 
     // Create a new request
-    const user = await AppUsersRequestModel.create({
+    const user = await AdminUsersRequestModel.create({
       firstName,
       lastName,
       username: `${firstName} ${lastName}`,
       email: normalizedEmail,
       status: "pending",
-      lastSubmittedAt: new Date(),
+      phone: phone
     });
 
     // Optionally: notify admin here
@@ -110,8 +108,8 @@ const register = async (req, res) => {
     );
 
     await transporter.sendMail({
-      from: `"Your Expense Tracker" <${process.env.EMAIL_USER}>`,
-      to: adminAccount?.email || "Admin",
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
       text: emailTemplate.text,
@@ -133,6 +131,8 @@ const register = async (req, res) => {
   }
 };
 
+
+
 const getUsersRequest = async (req, res) => {
   const { status = "", search = "" } = req.query;
 
@@ -149,7 +149,7 @@ const getUsersRequest = async (req, res) => {
       query.username = { $regex: search, $options: "i" };
     }
 
-const users = await AppUsersRequestModel.find(query)
+const users = await AdminUsersRequestModel.find(query)
   .populate({
     path: "actionBy",
     select: "-password -createdAt -updatedAt -__v" 
@@ -177,7 +177,7 @@ const rejectUserRequest = async (req, res) => {
       return util.ResFail(req, res, "Reject reason is required.");
     }
 
-    const existingUser = await AppUsersRequestModel.findOneAndUpdate({_id: id, status: {$ne: "rejected"}}, {
+    const existingUser = await AdminUsersRequestModel.findOneAndUpdate({_id: id, status: {$ne: "rejected"}}, {
       rejectReason,
       actionBy: util.objectId(_id),
       status: "rejected",
@@ -194,7 +194,7 @@ const rejectUserRequest = async (req, res) => {
     );
 
     await transporter.sendMail({
-      from: `"Your Expense Tracker" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_USER,
       to: existingUser.email,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
@@ -215,12 +215,19 @@ const rejectUserRequest = async (req, res) => {
 const approveUserRequest = async (req, res) => {
   const { _id } = req.user;
   const { id } = req.params;
+  const {roleId} = req.body
 
   try {
-    const existingUser = await AppUsersRequestModel.findOne({_id: id, status: {$nin: ["rejected", "approved"]}});
+    const existingUser = await AdminUsersRequestModel.findOne({_id: id, status: {$nin: ["rejected", "approved"]}});
 
     if (util.isEmpty(existingUser)) {
       return util.ResFail(req, res, "User request not found or user request has already been approved or rejected.", 400);
+    }
+
+    const role = await RoleModel.findById(roleId);
+
+    if(util.isEmpty(role)){
+      return util.ResFail(req, res, "Invalid role.");
     }
 
     existingUser.status = "approved";
@@ -229,43 +236,45 @@ const approveUserRequest = async (req, res) => {
 
     await existingUser.save();
 
-    // add to appUser
-    const appUser = await AppUsersModel.create({
-      email: existingUser.email,
+    const newAdminUser = await AdminUsersModel.create({
       firstName: existingUser.firstName,
       lastName: existingUser.lastName,
       username: existingUser.username,
-    });
+      password: util.generateResetToken(), // set default password for first try (user change later)
+      email: existingUser.email,
+      phone: existingUser.phone,
+      role: util.objectId(role._id)
+    })
 
-    const resetToken = util.generateResetToken();
-    const hashedToken = util.hashToken(resetToken);
+    const setUpToken = util.generateResetToken();
+    const hashedToken = util.hashToken(setUpToken);
 
     await PasswordSetUpTokenModel.deleteMany({
-      appUserId: appUser._id,
+      adminUserId: newAdminUser._id,
     });
 
     await PasswordSetUpTokenModel.create({
-      appUserId: appUser._id,
-      token: resetToken.substring(0, 8),
+      adminUserId: newAdminUser._id,
+      token: setUpToken.substring(0, 8),
       hashedToken: hashedToken,
     });
 
-    // Create reset URL
-    const resetUrl = `${
+    // Create setup URL
+    const setUpUrl = `${
       process.env.FRONTEND_URL || "http://localhost:3000"
-    }/auth/set-up-password?token=${resetToken}&email=${appUser.email}`;
+    }/auth/set-up-password?token=${setUpToken}&email=${newAdminUser.email}`;
 
     // Send email
     const transporter = mailer.createEmailTransporter();
     const emailTemplate = mailer.getPasswordSetUpEmailTemplate(
-      resetUrl,
-      appUser.email,
+      setUpUrl,
+      existingUser.email,
       24
     );
 
     await transporter.sendMail({
-      from: `"Your Expense Tracker" <${process.env.EMAIL_USER}>`,
-      to: appUser.email,
+      from: process.env.EMAIL_USER,
+      to: newAdminUser.email,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
       text: emailTemplate.text,
@@ -274,7 +283,7 @@ const approveUserRequest = async (req, res) => {
     return util.ResSuss(
       req,
       res,
-      appUser,
+      newAdminUser,
       "Approved user successfully. Link set up password has sent to user."
     );
   } catch (error) {
@@ -286,6 +295,7 @@ const approveUserRequest = async (req, res) => {
     );
   }
 };
+
 
 module.exports = {
   getUsersRequest,

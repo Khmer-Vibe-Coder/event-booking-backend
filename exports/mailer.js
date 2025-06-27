@@ -7,9 +7,9 @@ const nodemailer = require("nodemailer");
 // Configure email transporter (using Gmail as example)
 const createEmailTransporter = () => {
   return nodemailer.createTransport({
-    // service: 'gmail', // or your email provider
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
+     service: 'gmail', // or your email provider
+    // host: process.env.EMAIL_HOST,
+    // port: process.env.EMAIL_PORT,
     auth: {
       user: process.env.EMAIL_USER, // your email
       pass: process.env.EMAIL_APP_PASSWORD, // app-specific password

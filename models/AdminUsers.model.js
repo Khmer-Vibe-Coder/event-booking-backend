@@ -4,7 +4,11 @@ const validator = require("validator")
 const AdminSchema = mongoose.Schema(
     {
         isDeleted: { type: Boolean, default: false },
-        isSystemAdmin: {type: Boolean, default: false},
+        isSuperAdmin: {type: Boolean, default: false},
+        role: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "roles"
+        },
         username: {
             type: String,
             required: [true, "Username must not be null"],
@@ -20,7 +24,7 @@ const AdminSchema = mongoose.Schema(
             required: [true, "Username must not be null"],
             trim: true,
         },
-        password: { type: String, trim: true },
+        password: { type: String, trim: true, required: [true, "Password must not be null"] },
         email: {
             type: String,
             required: [true, "Email must not be null"],
