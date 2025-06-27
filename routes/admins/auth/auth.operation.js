@@ -48,6 +48,9 @@ const register = async (req, res) => {
     if (util.notEmpty(checkIfEmailExist)) {
       return util.ResFail(req, res, "Email already exists.");
     }
+        if (!util.validateEmail(email)) {
+      return util.ResFail(req, res, "Invalid email format!");
+    }
 
     if (!terms || !consents) {
       return util.ResFail(req, res, "You must agree to our terms and conditions!");

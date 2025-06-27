@@ -4,6 +4,7 @@ const validator = require("validator")
 const AdminSchema = mongoose.Schema(
     {
         isDeleted: { type: Boolean, default: false },
+        isSystemAdmin: {type: Boolean, default: false},
         username: {
             type: String,
             required: [true, "Username must not be null"],

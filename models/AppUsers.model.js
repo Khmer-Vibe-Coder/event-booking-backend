@@ -19,9 +19,10 @@ const AppSchema = mongoose.Schema(
             required: [true, "Username must not be null"],
             trim: true,
         },
-        password: { type: String, trim: true },
+        password: { type: String, trim: true, default: null },
         email: {
             type: String,
+            unique: true,
             required: [true, "Email must not be null"],
             trim: true,
             validate: {
