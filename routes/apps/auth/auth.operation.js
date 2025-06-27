@@ -1,12 +1,9 @@
 const util = require("../../../exports/util");
 const AppUser = require("../../../models/AppUsers.model");
 const PasswordResetToken = require("../../../models/PasswordResetToken.model");
-const bcrypt = require("bcryptjs");
+const bcrypt = require('bcryptjs');
 const mailer = require("../../../exports/mailer");
-const jwt = require("jsonwebtoken");
-const PasswordSetUpTokenModel = require("../../../models/PasswordSetUpToken.model");
-const PasswordResetTokenModel = require("../../../models/PasswordResetToken.model");
-// const AppUsersModel = require("../../../models/AppUsers.model");
+const jwt = require('jsonwebtoken');
 
 const login = async (req, res) => {
   try {
@@ -24,30 +21,60 @@ const login = async (req, res) => {
       return util.ResFail(req, res, "Incorrect password. Please try again.");
     }
 
+
     if (util.notEmpty(user)) {
       // Generate JWT
       const token = jwt.sign(
         { id: String(user._id), email: user.email },
         process.env.JWT_SECRET, // secret key in env vars
-        { expiresIn: "1h" } // token expiry time
+        { expiresIn: '1h' }     // token expiry time
       );
 
-      return util.ResSuss(
-        req,
-        res,
-        { token: `Bearer ${token}` },
-        "Login Successfully!"
-      );
+      return util.ResSuss(req, res, { token: `Bearer ${token}` }, "Login Successfully!");
     }
 
     return util.ResFail(req, res, "Invaild User!");
   } catch (error) {
-    console.error("Login route error:", error);
-    return util.ResFail(
-      req,
-      res,
-      "An error occurred during login. Please try again."
-    );
+    console.error('Login route error:', error);
+    return util.ResFail(req, res, "An error occurred during login. Please try again.");
+  }
+}
+
+const register = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, terms, consents } = req.body;
+
+    const checkIfEmailExist = await AppUser.findOne({ email: email }).catch(error => { throw error; });
+    if (util.notEmpty(checkIfEmailExist)) {
+      return util.ResFail(req, res, "Email already exists.");
+    }
+
+    if (!terms || !consents) {
+      return util.ResFail(req, res, "You must agree to our terms and conditions!");
+    }
+
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const user = await AppUser({
+      username: firstName + " " + lastName,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      password: hashedPassword
+    }).save();
+
+    if (util.notEmpty(user)) {
+      // ADD: Create default data for the user
+      
+      return util.ResSuss(req, res, null, "Account created successfully!");
+    }
+
+    return util.ResFail(req, res, "Failed to register as our user. Please try it again later!");
+  } catch (error) {
+    console.error('Register route error:', error);
+    return util.ResFail(req, res, "An error occurred during registration. Please try again.");
   }
 };
 
@@ -72,7 +99,7 @@ const resetPassword = async (req, res) => {
       email: normalizedEmail,
       hashedToken,
       expiresAt: { $gt: new Date() },
-      used: false,
+      used: false
     });
 
     if (!tokenRecord) {
@@ -92,30 +119,21 @@ const resetPassword = async (req, res) => {
     // Update user password
     await AppUser.findByIdAndUpdate(user._id, {
       password: hashedPassword,
-      passwordChangedAt: new Date(),
+      passwordChangedAt: new Date()
     });
 
     // Delete all other reset tokens for this user
     await PasswordResetToken.deleteMany({
       appUserId: user._id,
-      _id: { $ne: tokenRecord._id },
+      _id: { $ne: tokenRecord._id }
     });
 
     console.log(`Password reset successful for user: ${normalizedEmail}`);
 
-    return util.ResSuss(
-      req,
-      res,
-      null,
-      "Password has been reset successfully."
-    );
+    return util.ResSuss(req, res, null, "Password has been reset successfully.");
   } catch (error) {
-    console.error("Reset password error:", error);
-    return util.ResFail(
-      req,
-      res,
-      "Internal server error. Please try again later."
-    );
+    console.error('Reset password error:', error);
+    return util.ResFail(req, res, "Internal server error. Please try again later.");
   }
 };
 
@@ -140,8 +158,8 @@ const verifyResetToken = async (req, res) => {
       email: normalizedEmail,
       hashedToken,
       expiresAt: { $gt: new Date() },
-      used: false,
-    }).populate("appUserId", "email name");
+      used: false
+    }).populate('appUserId', 'email name');
 
     if (!tokenRecord) {
       return util.ResFail(req, res, "Invalid or expired reset token.");
@@ -149,7 +167,7 @@ const verifyResetToken = async (req, res) => {
 
     return util.ResSuss(req, res, null, "Token is valid.");
   } catch (error) {
-    console.error("Verify reset token error:", error);
+    console.error('Verify reset token error:', error);
     return util.ResFail(req, res, "Internal server error.");
   }
 };
@@ -174,31 +192,19 @@ const forgotPassword = async (req, res) => {
 
     // Always return success for security (don't reveal if email exists)
     if (!user) {
-      return util.ResFail(
-        req,
-        res,
-        "If an account with that email exists, we have sent a password reset link."
-      );
+      return util.ResFail(req, res, "If an account with that email exists, we have sent a password reset link.");
     }
 
     // Check for existing unexpired token
     const existingToken = await PasswordResetToken.findOne({
       appUserId: user._id,
       expiresAt: { $gt: new Date() },
-      used: false,
+      used: false
     });
 
     // If resending and recent token exists, use it
-    if (
-      resend &&
-      existingToken &&
-      Date.now() - existingToken.createdAt < 60000
-    ) {
-      return util.ResFail(
-        req,
-        res,
-        "Please wait 60 seconds before requesting another reset email."
-      );
+    if (resend && existingToken && (Date.now() - existingToken.createdAt) < 60000) {
+      return util.ResFail(req, res, "Please wait 60 seconds before requesting another reset email.");
     }
 
     // Generate new reset token
@@ -214,53 +220,39 @@ const forgotPassword = async (req, res) => {
       email: normalizedEmail,
       token: resetToken.substring(0, 8), // Store partial token for reference
       hashedToken,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
     });
 
     await tokenRecord.save();
 
     // Create reset URL
-    const resetUrl = `${
-      process.env.FRONTEND_URL || "http://localhost:3000"
-    }/auth/reset-password?token=${resetToken}&email=${normalizedEmail}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}&email=${normalizedEmail}`;
 
     // Send email
     const transporter = mailer.createEmailTransporter();
-    const emailTemplate = mailer.getPasswordResetEmailTemplate(
-      resetUrl,
-      normalizedEmail,
-      15
-    );
+    const emailTemplate = mailer.getPasswordResetEmailTemplate(resetUrl, normalizedEmail, 15);
 
     await transporter.sendMail({
       from: `"Your Expense Tracker" <${process.env.EMAIL_USER}>`,
       to: normalizedEmail,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
-      text: emailTemplate.text,
+      text: emailTemplate.text
     });
 
     console.log(`Password reset email sent to: ${normalizedEmail}`);
 
-    return util.ResSuss(
-      req,
-      res,
-      null,
-      "Password reset link has been sent to your email address."
-    );
+    return util.ResSuss(req, res, null, "Password reset link has been sent to your email address.");
   } catch (error) {
-    console.error("Forgot password error:", error);
-    return util.ResFail(
-      req,
-      res,
-      "Internal server error. Please try again later."
-    );
+    console.error('Forgot password error:', error);
+    return util.ResFail(req, res, "Internal server error. Please try again later.");
   }
 };
 
 module.exports = {
   login,
+  register,
   resetPassword,
   verifyResetToken,
-  forgotPassword,
-};
+  forgotPassword
+}

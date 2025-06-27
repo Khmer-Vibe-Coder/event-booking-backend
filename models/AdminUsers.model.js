@@ -1,7 +1,7 @@
 const { db, mongoose } = require("./settings/connection")
 const validator = require("validator")
 
-const AdminSchema = mongoose.Schema(
+const adminSchema = mongoose.Schema(
     {
         isDeleted: { type: Boolean, default: false },
         isSuperAdmin: {type: Boolean, default: false},
@@ -39,4 +39,4 @@ const AdminSchema = mongoose.Schema(
     { timestamps: { createdAt: "createdAt", updatedAt: "updatedAt" } }
 )
 
-module.exports = db.model("admin_users", AdminSchema)
+module.exports = db.model("admin_users", adminSchema)

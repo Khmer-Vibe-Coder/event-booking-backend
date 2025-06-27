@@ -1,6 +1,6 @@
 const { db, mongoose } = require("./settings/connection");
 
-const appSchema = new mongoose.Schema(
+const roleSchema = new mongoose.Schema(
   {
     name: {type: String, required: true},
   },
@@ -9,4 +9,4 @@ const appSchema = new mongoose.Schema(
   }
 );
 
-module.exports = db.model("roles", appSchema);
+module.exports = db.model("roles", roleSchema);

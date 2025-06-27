@@ -1,7 +1,7 @@
 const { db, mongoose } = require("./settings/connection");
 const validator = require("validator");
 
-const AppSchema = mongoose.Schema(
+const adminUsersRequestSchema = mongoose.Schema(
   {
     status: {
       type: String,
@@ -58,4 +58,4 @@ const AppSchema = mongoose.Schema(
   }
 );
 
-module.exports = db.model("admin_users_request", AppSchema);
+module.exports = db.model("admin_users_request", adminUsersRequestSchema);

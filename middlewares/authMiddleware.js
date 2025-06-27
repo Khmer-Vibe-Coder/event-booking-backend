@@ -10,7 +10,7 @@ const authenticate = async (req, res, next) => {
         return util.ResFail(req, res, 'Unauthorized: Token missing.', 401);
     }
 
-    const token = authHeader.split(' ')[2];
+    const token = authHeader.split(' ')[1];
     
 
     try {
