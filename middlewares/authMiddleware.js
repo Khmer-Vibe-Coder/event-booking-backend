@@ -11,6 +11,7 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+    
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -19,13 +20,13 @@ const authenticate = async (req, res, next) => {
         }
 
         // Determine which user model to use
-        const isAppRequest = req.path.startsWith('/app');
+        const isAppRequest = req.originalUrl.startsWith('/app');
         const UserModel = isAppRequest ? AppUser : AdminUser;
 
         const user = await UserModel.findOne({ _id: util.objectId(decoded.id) }).catch(error => { throw error });
 
         if (util.isEmpty(user)) {
-            return util.ResFail(req, res, 'User not found.', 401);
+            return util.ResFail(req, res, 'Unauthorized. Invalid Token', 401);
         }
 
         req.user = user;

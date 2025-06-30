@@ -1,6 +1,3 @@
-const dateTimeKeys = [
-    "createdAt",
-    "updatedAt", 
-]
+const dateTimeKeys = ["createdAt", "updatedAt"];
 
-module.exports = { dateTimeKeys }
+module.exports = { dateTimeKeys };

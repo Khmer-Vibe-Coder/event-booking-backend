@@ -1,7 +1,7 @@
 const { db, mongoose } = require("./settings/connection")
 const validator = require("validator")
 
-const AppSchema = mongoose.Schema(
+const appUsersSchema = mongoose.Schema(
     {
         isDeleted: { type: Boolean, default: false },
         username: {
@@ -19,9 +19,10 @@ const AppSchema = mongoose.Schema(
             required: [true, "Username must not be null"],
             trim: true,
         },
-        password: { type: String, trim: true },
+        password: { type: String, trim: true, default: null },
         email: {
             type: String,
+            unique: true,
             required: [true, "Email must not be null"],
             trim: true,
             validate: {
@@ -34,4 +35,4 @@ const AppSchema = mongoose.Schema(
     { timestamps: { createdAt: "createdAt", updatedAt: "updatedAt" } }
 )
 
-module.exports = db.model("app_users", AppSchema)
+module.exports = db.model("app_users", appUsersSchema)
