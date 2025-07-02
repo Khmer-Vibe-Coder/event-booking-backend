@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const util = require('../exports/util');
 const AdminUser = require("../models/AdminUsers.model");
 const AppUser = require("../models/AppUsers.model"); // add this
+const { populate } = require('../models/PasswordSetUpToken.model');
+const { log } = require('console');
 
 const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -23,7 +25,16 @@ const authenticate = async (req, res, next) => {
         const isAppRequest = req.originalUrl.startsWith('/app');
         const UserModel = isAppRequest ? AppUser : AdminUser;
 
-        const user = await UserModel.findOne({ _id: util.objectId(decoded.id) }).catch(error => { throw error });
+        const user = await UserModel.findOne({ _id: util.objectId(decoded.id) }).populate({
+        path: "role",
+        populate: {
+          path: "rights",
+          select: "-__v -updatedAt -createdAt",
+        },
+      })
+      .select("-__v -password").catch(error => { throw error });
+        // console.log(user);
+        
 
         if (util.isEmpty(user)) {
             return util.ResFail(req, res, 'Unauthorized. Invalid Token', 401);

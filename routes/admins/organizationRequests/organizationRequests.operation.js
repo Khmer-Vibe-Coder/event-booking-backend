@@ -4,12 +4,25 @@ const PasswordResetTokenModel = require("../../../models/PasswordResetToken.mode
 const PasswordSetUpTokenModel = require("../../../models/PasswordSetUpToken.model");
 const mailer = require("../../../exports/mailer");
 const AdminUsersModel = require("../../../models/AdminUsers.model");
-const AdminUsersRequestModel = require("../../../models/AdminUsersRequest.model");
+// const Organization = require("../../../models/OrganizationsRequest.model");
 const RoleModel = require("../../../models/Role.model");
+const OrganizationModel = require("../../../models/Organization.model");
+const OrganizationsRequestModel = require("../../../models/OrganizationRequest.model");
 
 const register = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, terms, consents } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      terms,
+      consents,
+      orgName,
+      orgEmail,
+      orgDescription,
+      orgPhone,
+    } = req.body;
 
     if (!util.validateEmail(email)) {
       return util.ResFail(req, res, "Invalid email format!");
@@ -25,12 +38,9 @@ const register = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    const existingRequest = await AdminUsersRequestModel.findOne({
+    const existingRequest = await OrganizationsRequestModel.findOne({
       email: normalizedEmail,
     });
-
-    // get email system admin
-    const adminAccount = await AdminUsersModel.findOne({ isSuperAdmin: true });
 
     // Check if already exists
     if (existingRequest) {
@@ -59,10 +69,13 @@ const register = async (req, res) => {
         existingRequest.username = `${firstName} ${lastName}`;
         existingRequest.status = "pending";
         existingRequest.rejectReason = null;
-        existingRequest.actionBy = null
-        existingRequest.phone = phone
+        existingRequest.actionBy = null;
+        existingRequest.phone = phone;
+        existingRequest.orgName = orgName;
+        existingRequest.orgDescription = orgDescription;
+        existingRequest.orgEmail = orgEmail;
+        existingRequest.orgPhone = orgPhone;
         const resubmitUser = await existingRequest.save();
-
         // Optionally: notify admin again here
 
         const transporter = mailer.createEmailTransporter();
@@ -73,7 +86,7 @@ const register = async (req, res) => {
 
         // send email to system admin
         await transporter.sendMail({
-          from:process.env.EMAIL_USER,
+          from: process.env.EMAIL_USER,
           to: process.env.EMAIL_USER,
           subject: emailTemplate.subject,
           html: emailTemplate.html,
@@ -90,13 +103,17 @@ const register = async (req, res) => {
     }
 
     // Create a new request
-    const user = await AdminUsersRequestModel.create({
+    const user = await OrganizationsRequestModel.create({
       firstName,
       lastName,
       username: `${firstName} ${lastName}`,
       email: normalizedEmail,
       status: "pending",
-      phone: phone
+      phone: phone,
+      orgPhone: orgPhone,
+      orgDescription: orgDescription,
+      orgName: orgName,
+      orgEmail: orgEmail,
     });
 
     // Optionally: notify admin here
@@ -131,34 +148,68 @@ const register = async (req, res) => {
   }
 };
 
-
-
-const getUsersRequest = async (req, res) => {
-  const { status = "", search = "" } = req.query;
+const getAllRequests = async (req, res) => {
+  const {
+    status = "",
+    search = "",
+    page = 1,
+    per_page = 10,
+    start_created_at,
+    end_created_at,
+  } = req.query;
 
   const statusFormat = ["pending", "approved", "rejected"];
+
   try {
     const query = {};
 
+    // Filter  status
     if (status && statusFormat.includes(status)) {
       query.status = status;
     }
 
-    if (search) {
-      query.email = { $regex: search, $options: "i" };
-      query.username = { $regex: search, $options: "i" };
+    // Filter createdAt 
+    if (start_created_at || end_created_at) {
+      query.createdAt = {};
+      if (start_created_at) {
+        query.createdAt.$gte = new Date(start_created_at);
+      }
+      if (end_created_at) {
+        query.createdAt.$lte = new Date(end_created_at);
+      }
     }
 
-const users = await AdminUsersRequestModel.find(query)
-  .populate({
-    path: "actionBy",
-    select: "-password -createdAt -updatedAt -__v" 
-  });
+    // Search email username
+    if (search) {
+      query.$or = [
+        { email: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const pageNo = util.defaultPageNo(page)
+    const pageSize = util.defaultPageNo(per_page)
+    const skip = (pageNo - 1) * pageSize;
 
 
-    return util.ResSuss(req, res, users, "Get all users request.");
+    const total = await OrganizationsRequestModel.countDocuments(query);
+
+    const organizationRequests = await OrganizationsRequestModel.find(query)
+      .populate({
+        path: "actionBy",
+        select: "-password -createdAt -updatedAt -__v",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
+
+      const paginate=util.getPagination(pageNo, pageSize, total, Math.ceil(total / pageSize));
+
+    return util.ResSuss(req, res, organizationRequests, "Get all organizations requests successfully.", paginate);
+    
   } catch (error) {
-    console.error("getUserRequest error:", error);
+    console.error("getAllRequests error:", error);
     return util.ResFail(
       req,
       res,
@@ -167,7 +218,36 @@ const users = await AdminUsersRequestModel.find(query)
   }
 };
 
-const rejectUserRequest = async (req, res) => {
+
+const getRequestById = async (req, res) => {
+
+  const {id} = req.params
+  try {
+
+
+    const organizationsRequest = await OrganizationsRequestModel.findById(id).populate({
+      path: "actionBy",
+      select: "-password -createdAt -updatedAt -__v",
+    });
+
+    return util.ResSuss(
+      req,
+      res,
+      organizationsRequest,
+      "Get one organizations request successfully."
+    );
+
+  } catch (error) {
+    console.error("getRequestById error:", error);
+    return util.ResFail(
+      req,
+      res,
+      "Internal server error. Please try again later."
+    );
+  }
+};
+
+const rejectRequest = async (req, res) => {
   const { _id } = req.user;
   const { id } = req.params;
   const { rejectReason = "" } = req.body;
@@ -177,31 +257,45 @@ const rejectUserRequest = async (req, res) => {
       return util.ResFail(req, res, "Reject reason is required.");
     }
 
-    const existingUser = await AdminUsersRequestModel.findOneAndUpdate({_id: id, status: {$ne: "rejected"}}, {
-      rejectReason,
-      actionBy: util.objectId(_id),
-      status: "rejected",
-    });
+    const updatedOrgRequest = await OrganizationsRequestModel.findOneAndUpdate(
+      { _id: id, status: { $ne: "rejected" } },
+      {
+        rejectReason,
+        actionBy: util.objectId(_id),
+        actionAt: new Date(),
+        status: "rejected",
+      }
+    );
 
-    if (util.isEmpty(existingUser)) {
-      return util.ResFail(req, res, "User request not found or user request is already rejected.", 400);
+    if (util.isEmpty(updatedOrgRequest)) {
+      return util.ResFail(
+        req,
+        res,
+        "Org request not found or org request is already rejected.",
+        400
+      );
     }
     // Send email
     const transporter = mailer.createEmailTransporter();
     const emailTemplate = mailer.getUserRejectionEmailTemplate(
-      existingUser,
+      updatedOrgRequest,
       rejectReason
     );
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: existingUser.email,
+      to: updatedOrgRequest.email,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
       text: emailTemplate.text,
     });
 
-    return util.ResSuss(req, res, existingUser, "Reject user request successfully.");
+    return util.ResSuss(
+      req,
+      res,
+      updatedOrgRequest,
+      "Reject org request successfully."
+    );
   } catch (error) {
     console.error("Reject error:", error);
     return util.ResFail(
@@ -212,39 +306,60 @@ const rejectUserRequest = async (req, res) => {
   }
 };
 
-const approveUserRequest = async (req, res) => {
+const approveRequest = async (req, res) => {
   const { _id } = req.user;
   const { id } = req.params;
-  const {roleId} = req.body
+  // const { roleId } = req.body;
 
   try {
-    const existingUser = await AdminUsersRequestModel.findOne({_id: id, status: {$nin: ["rejected", "approved"]}});
+    const existingOrg = await OrganizationsRequestModel.findOne({
+      _id: id,
+      status: { $nin: [ "approved"] },
+    });
 
-    if (util.isEmpty(existingUser)) {
-      return util.ResFail(req, res, "User request not found or user request has already been approved or rejected.", 400);
+    if (util.isEmpty(existingOrg)) {
+      return util.ResFail(
+        req,
+        res,
+        "Org request not found or org request has already been approved.",
+        400
+      );
     }
 
-    const role = await RoleModel.findById(roleId);
+    const newOrg = await OrganizationModel.create({
+      name: existingOrg.orgName,
+      phone: existingOrg.orgPhone,
+      email: existingOrg.orgEmail,
+      description: existingOrg.orgDescription,
+    });
 
-    if(util.isEmpty(role)){
+    const role = await RoleModel.findOne({name: "Organization Admin"});
+
+    if (util.isEmpty(role)) {
       return util.ResFail(req, res, "Invalid role.");
     }
 
-    existingUser.status = "approved";
-    existingUser.actionBy = util.objectId(_id);
-    existingUser.rejectReason = null;
+    existingOrg.status = "approved";
+    existingOrg.actionBy = util.objectId(_id);
+    existingOrg.actionAt = new Date();
+    existingOrg.rejectReason = null;
 
-    await existingUser.save();
+    await existingOrg.save();
 
     const newAdminUser = await AdminUsersModel.create({
-      firstName: existingUser.firstName,
-      lastName: existingUser.lastName,
-      username: existingUser.username,
-      password: util.generateResetToken(), // set default password for first try (user change later)
-      email: existingUser.email,
-      phone: existingUser.phone,
-      role: util.objectId(role._id)
-    })
+      firstName: existingOrg.firstName,
+      lastName: existingOrg.lastName,
+      username: existingOrg.username,
+      email: existingOrg.email,
+      phone: existingOrg.phone,
+      role: util.objectId(role._id),
+      organization: util.objectId(newOrg._id),
+      isOrganizationSuperAdmin: true,
+    });
+
+    newOrg.adminUser = newAdminUser._id;
+
+    await newOrg.save();
 
     const setUpToken = util.generateResetToken();
     const hashedToken = util.hashToken(setUpToken);
@@ -262,32 +377,37 @@ const approveUserRequest = async (req, res) => {
     // Create setup URL
     const setUpUrl = `${
       process.env.FRONTEND_URL || "http://localhost:3000"
-    }/auth/set-up-password?token=${setUpToken}&email=${newAdminUser.email}`;
+    }/auth/set-up-password?token=${setUpToken}&email=${
+      existingOrg.email
+    }&orgId=${newOrg._id}`;
 
     // Send email
     const transporter = mailer.createEmailTransporter();
     const emailTemplate = mailer.getPasswordSetUpEmailTemplate(
       setUpUrl,
-      existingUser.email,
+      existingOrg.email,
       24
     );
 
-    await transporter.sendMail({
+    const result = await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: newAdminUser.email,
+      to: existingOrg.email,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
       text: emailTemplate.text,
     });
 
+    console.log(result);
+    
+
     return util.ResSuss(
       req,
       res,
       newAdminUser,
-      "Approved user successfully. Link set up password has sent to user."
+      "Approved organization successfully. Link set up password has sent to org admin user."
     );
   } catch (error) {
-    console.error("approve user error:", error);
+    console.error("approve org error:", error);
     return util.ResFail(
       req,
       res,
@@ -296,10 +416,10 @@ const approveUserRequest = async (req, res) => {
   }
 };
 
-
 module.exports = {
-  getUsersRequest,
-  approveUserRequest,
+  getAllRequests,
+  approveRequest,
   register,
-  rejectUserRequest,
+  rejectRequest,
+  getRequestById
 };

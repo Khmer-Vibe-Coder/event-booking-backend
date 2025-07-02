@@ -1,7 +1,7 @@
 const { db, mongoose } = require("./settings/connection");
 const validator = require("validator");
 
-const adminUsersRequestSchema = mongoose.Schema(
+const organizationsRequestSchema = mongoose.Schema(
   {
     status: {
       type: String,
@@ -51,11 +51,18 @@ const adminUsersRequestSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
       ref: "admin_users",
-    }
+    },
+    actionAt : {
+      type: Date,
+    },
+    orgName: {type: String, default: null},
+    orgDescription: {type: String,default: null},
+    orgEmail: {type: String,default: null},
+    orgPhone: {type: String,default: null}
   },
   {
     timestamps: { createdAt: "createdAt", updatedAt: "updatedAt" },
   }
 );
 
-module.exports = db.model("admin_users_request", adminUsersRequestSchema);
+module.exports = db.model("organizations_request", organizationsRequestSchema);

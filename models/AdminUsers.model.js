@@ -1,10 +1,12 @@
-const { db, mongoose } = require("./settings/connection")
+const { db, mongoose, refTable } = require("./settings/connection")
 const validator = require("validator")
 
 const adminSchema = mongoose.Schema(
     {
         isDeleted: { type: Boolean, default: false },
         isSuperAdmin: {type: Boolean, default: false},
+        isOrganizationSuperAdmin : {type: Boolean,default: false},
+        organization: refTable('organizations'),
         role: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "roles"
@@ -24,11 +26,12 @@ const adminSchema = mongoose.Schema(
             required: [true, "Username must not be null"],
             trim: true,
         },
-        password: { type: String, trim: true, required: [true, "Password must not be null"] },
+        password: { type: String, trim: true, default: null },
         email: {
             type: String,
             required: [true, "Email must not be null"],
             trim: true,
+            unique: true,
             validate: {
                 validator: (v) => validator.isEmail(v),
                 message: "Invalid email format",
