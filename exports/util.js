@@ -97,12 +97,16 @@ const validateEmail = (email) => {
     return emailRegex.test(email) && email.length <= 254;
 };
 
-const ResSuss = (req, res, data = {}, message = "Successfully") => {
-    return res.send({
+const ResSuss = (req, res, data = {}, message = "Successfully", paginate = null) => {
+    const responseObj = {
         status: 200,
         message: message,
         data: data,
-    })
+    }
+    if(notEmpty(paginate)){
+        responseObj.paginate = paginate
+    }
+    return res.send(responseObj)
 }
 
 function isError(v) {
@@ -164,6 +168,23 @@ function ResFail(req, res, rsp, status, data = null) {
     return res.status(status || 400).send(response)
 }
 
+function getPagination (page, per_page, total, totalPages){
+    return {page, per_page, total, totalPages}
+}
+
+const ResValidateError = (error, res) => {
+  if (error) {
+    const errorMessages = error.details.map((detail) => detail.message);
+    res.status(400).json({
+        status : error.status || 400, //default
+      message: "Validate Error",
+      errorCode : error.errorCode || 100000 ,//default
+      data: errorMessages
+    });
+    return true;
+  }
+  return false;
+};
 
 module.exports = {
     notEmpty,
@@ -176,4 +197,6 @@ module.exports = {
     objectId,
     defaultPageSize,
     defaultPageNo
+    ,getPagination,
+    ResValidateError
 }
