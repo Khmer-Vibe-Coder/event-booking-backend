@@ -172,6 +172,19 @@ function getPagination (page, per_page, total, totalPages){
     return {page, per_page, total, totalPages}
 }
 
+const ResValidateError = (error, res) => {
+  if (error) {
+    const errorMessages = error.details.map((detail) => detail.message);
+    res.status(400).json({
+        status : error.status || 400, //default
+      message: "Validate Error",
+      errorCode : error.errorCode || 100000 ,//default
+      data: errorMessages
+    });
+    return true;
+  }
+  return false;
+};
 
 module.exports = {
     notEmpty,
@@ -184,5 +197,6 @@ module.exports = {
     objectId,
     defaultPageSize,
     defaultPageNo
-    ,getPagination
+    ,getPagination,
+    ResValidateError
 }

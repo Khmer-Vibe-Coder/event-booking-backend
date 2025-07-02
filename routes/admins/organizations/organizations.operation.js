@@ -3,10 +3,17 @@ const AdminUsersModel = require("../../../models/AdminUsers.model");
 const OrganizationModel = require("../../../models/Organization.model");
 const validator = require("validator");
 const RoleModel = require("../../../models/Role.model");
-const mailer = require("../../../exports/mailer")
+const mailer = require("../../../exports/mailer");
+const { vSetImage, vCreateOrg, vUpdateOrg } = require("../../../validations/admin/organizations.validation");
 
 const setImage = async (req, res) => {
   const { orgId } = req.params;
+
+  const {error} = vSetImage.validate(req.body)
+  if(util.notEmpty(error)){
+    return util.ResValidateError(error, res)
+  }
+
   const { imageUrl } = req.body;
 
   try {
@@ -36,6 +43,11 @@ const setImage = async (req, res) => {
 };
 
 const create = async (req, res) => {
+      const {error} = vCreateOrg.validate(req.body)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
+
   const {
     firstName,
     lastName,
@@ -141,6 +153,10 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
   const { id } = req.params;
+      const {error} = vUpdateOrg.validate(req.body)
+      if(util.notEmpty(error)){
+        return util.ResValidateError(error, res)
+      }
   const { name, description, phone, image } = req.body;
 
   try {

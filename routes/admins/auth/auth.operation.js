@@ -5,9 +5,14 @@ const bcrypt = require("bcryptjs");
 const mailer = require("../../../exports/mailer");
 const jwt = require("jsonwebtoken");
 const AdminUsersModel = require("../../../models/AdminUsers.model");
+const { vLogin, vRegister, vResetPassword, vForgotPassword } = require("../../../validations/admin/auth.validation");
 
 const login = async (req, res) => {
   try {
+    const {error} = vLogin.validate(req.body)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
     const { email, password } = req.body;
 
     const user = await AdminUser.findOne({ email: email , isDeleted: false});
@@ -50,6 +55,10 @@ const login = async (req, res) => {
 };
 
 const register = async (req, res) => {
+      const {error} = vRegister.validate(req.body)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
   try {
     const {
       firstName,
@@ -123,17 +132,12 @@ const register = async (req, res) => {
 };
 
 const resetPassword = async (req, res) => {
+        const {error} = vResetPassword.validate(req.body)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
   try {
     const { token, email, newPassword } = req.body;
-
-    // Validate input
-    if (!token || !email || !newPassword) {
-      return util.ResFail(req, res, "All fields are required!");
-    }
-
-    if (!util.validateEmail(email)) {
-      return util.ResFail(req, res, "Invalid email format!");
-    }
 
     const normalizedEmail = email.toLowerCase().trim();
     const hashedToken = util.hashToken(token);
@@ -227,6 +231,11 @@ const verifyResetToken = async (req, res) => {
 };
 
 const forgotPassword = async (req, res) => {
+          const {error} = vForgotPassword.validate(req.body)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
+
   try {
     const { email, resend = false } = req.body;
 

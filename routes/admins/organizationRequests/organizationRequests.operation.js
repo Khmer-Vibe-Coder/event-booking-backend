@@ -8,8 +8,16 @@ const AdminUsersModel = require("../../../models/AdminUsers.model");
 const RoleModel = require("../../../models/Role.model");
 const OrganizationModel = require("../../../models/Organization.model");
 const OrganizationsRequestModel = require("../../../models/OrganizationRequest.model");
+const {
+  vRegister,
+  vRejectRequest,
+} = require("../../../validations/admin/organizationRequests.validation");
 
 const register = async (req, res) => {
+  const { error } = vRegister.validate(req.body);
+  if (util.notEmpty(error)) {
+    return util.ResValidateError(error, res);
+  }
   try {
     const {
       firstName,
@@ -168,7 +176,7 @@ const getAllRequests = async (req, res) => {
       query.status = status;
     }
 
-    // Filter createdAt 
+    // Filter createdAt
     if (start_created_at || end_created_at) {
       query.createdAt = {};
       if (start_created_at) {
@@ -188,10 +196,9 @@ const getAllRequests = async (req, res) => {
     }
 
     // Pagination
-    const pageNo = util.defaultPageNo(page)
-    const pageSize = util.defaultPageNo(per_page)
+    const pageNo = util.defaultPageNo(page);
+    const pageSize = util.defaultPageNo(per_page);
     const skip = (pageNo - 1) * pageSize;
-
 
     const total = await OrganizationsRequestModel.countDocuments(query);
 
@@ -204,10 +211,20 @@ const getAllRequests = async (req, res) => {
       .skip(skip)
       .limit(pageSize);
 
-      const paginate=util.getPagination(pageNo, pageSize, total, Math.ceil(total / pageSize));
+    const paginate = util.getPagination(
+      pageNo,
+      pageSize,
+      total,
+      Math.ceil(total / pageSize)
+    );
 
-    return util.ResSuss(req, res, organizationRequests, "Get all organizations requests successfully.", paginate);
-    
+    return util.ResSuss(
+      req,
+      res,
+      organizationRequests,
+      "Get all organizations requests successfully.",
+      paginate
+    );
   } catch (error) {
     console.error("getAllRequests error:", error);
     return util.ResFail(
@@ -218,14 +235,12 @@ const getAllRequests = async (req, res) => {
   }
 };
 
-
 const getRequestById = async (req, res) => {
-
-  const {id} = req.params
+  const { id } = req.params;
   try {
-
-
-    const organizationsRequest = await OrganizationsRequestModel.findById(id).populate({
+    const organizationsRequest = await OrganizationsRequestModel.findById(
+      id
+    ).populate({
       path: "actionBy",
       select: "-password -createdAt -updatedAt -__v",
     });
@@ -236,7 +251,6 @@ const getRequestById = async (req, res) => {
       organizationsRequest,
       "Get one organizations request successfully."
     );
-
   } catch (error) {
     console.error("getRequestById error:", error);
     return util.ResFail(
@@ -250,6 +264,12 @@ const getRequestById = async (req, res) => {
 const rejectRequest = async (req, res) => {
   const { _id } = req.user;
   const { id } = req.params;
+
+  const { error } = vRejectRequest.validate(req.body);
+  if (util.notEmpty(error)) {
+    return util.ResValidateError(error, res);
+  }
+
   const { rejectReason = "" } = req.body;
 
   try {
@@ -310,11 +330,10 @@ const approveRequest = async (req, res) => {
   const { _id } = req.user;
   const { id } = req.params;
 
-
   try {
     const existingOrg = await OrganizationsRequestModel.findOne({
       _id: id,
-      status: { $nin: [ "approved"] },
+      status: { $nin: ["approved"] },
     });
 
     if (util.isEmpty(existingOrg)) {
@@ -333,7 +352,7 @@ const approveRequest = async (req, res) => {
       description: existingOrg.orgDescription,
     });
 
-    const role = await RoleModel.findOne({name: "Organization Super Admin"});
+    const role = await RoleModel.findOne({ name: "Organization Super Admin" });
 
     if (util.isEmpty(role)) {
       return util.ResFail(req, res, "Invalid role.");
@@ -398,7 +417,6 @@ const approveRequest = async (req, res) => {
     });
 
     console.log(result);
-    
 
     return util.ResSuss(
       req,
@@ -421,5 +439,5 @@ module.exports = {
   approveRequest,
   register,
   rejectRequest,
-  getRequestById
+  getRequestById,
 };

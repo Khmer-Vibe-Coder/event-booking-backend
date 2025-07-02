@@ -1,8 +1,14 @@
 
 const util = require("../../../exports/util");
 const RoleModel = require("../../../models/Role.model");
+const { vCreateRole, vUpdateRole } = require("../../../validations/admin/roles.validation");
 
 const create = async (req, res) => {
+      const {error} = vCreateRole.validate(req.body)
+      if(util.notEmpty(error)){
+        return util.ResValidateError(error, res)
+      }
+
   const { name } = req.body;
   const orgId = req.user.organization?._id  || null;
   try {
@@ -21,6 +27,10 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
   const { id } = req.params;
+      const {error} = vUpdateRole.validate(req.body)
+      if(util.notEmpty(error)){
+        return util.ResValidateError(error, res)
+      }
   const { name, rights = [], orgId } = req.body;
 
   try {

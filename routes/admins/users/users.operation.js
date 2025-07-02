@@ -5,8 +5,14 @@ const mailer = require("../../../exports/mailer");
 const bcrypt = require("bcryptjs");
 const OrganizationModel = require("../../../models/Organization.model");
 const RoleModel = require("../../../models/Role.model");
+const { vCreateUser, vSetUpPassword, vRequestLinkSetUpPassword, vUpdateUser } = require("../../../validations/admin/users.validation");
 
 const create = async (req, res) => {
+      const {error} = vCreateUser.validate(req.body)
+      if(util.notEmpty(error)){
+        return util.ResValidateError(error, res)
+      }
+
   const {
     firstName,
     lastName,
@@ -181,6 +187,10 @@ const getOne = async (req, res) => {
 };
 
 const setUpPassword = async (req, res) => {
+      const {error} = vSetUpPassword.validate(req.body)
+      if(util.notEmpty(error)){
+        return util.ResValidateError(error, res)
+      }
   try {
     const { email, password, token, orgId } = req.body;
 
@@ -263,6 +273,10 @@ const setUpPassword = async (req, res) => {
 };
 
 const requestLinkSetUpPassword = async (req, res) => {
+      const {error} = vRequestLinkSetUpPassword.validate(req.query)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
   try {
     const { email, orgId } = req.query;
 
@@ -340,6 +354,10 @@ const requestLinkSetUpPassword = async (req, res) => {
 };
 
 const requestLinkSetUpPasswordOrgUser = async (req, res) => {
+        const {error} = vRequestLinkSetUpPassword.validate(req.query)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
   try {
     const { email, orgId } = req.query;
 
@@ -453,6 +471,11 @@ const deleteUser = async (req, res) => {
 
 const update = async (req, res) => {
   const { id } = req.params;
+        const {error} = vUpdateUser.validate(req.body)
+    if(util.notEmpty(error)){
+      return util.ResValidateError(error, res)
+    }
+ 
   const { firstName, lastName, username, email, roleId } = req.body;
 
   try {
@@ -475,7 +498,7 @@ const update = async (req, res) => {
 
     const checkExistRole = await RoleModel.findById(roleId);
     if (util.isEmpty(checkExistRole)) {
-      return util.ResFail(req, res, "Role not founc.");
+      return util.ResFail(req, res, "Role not found.");
     }
 
     if (user.isSuperAdmin || user.isOrganizationSuperAdmin) {
