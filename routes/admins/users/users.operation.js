@@ -7,9 +7,13 @@ const OrganizationModel = require("../../../models/Organization.model");
 const RoleModel = require("../../../models/Role.model");
 
 const create = async (req, res) => {
-
-  const { firstName, lastName, email, roleId } = req.body;
-  const orgId = req.user.organization?._id  || null;
+  const {
+    firstName,
+    lastName,
+    email,
+    roleId,
+  } = req.body;
+  const orgId = req.user.organization?._id || null;
 
   try {
     // check duplicate user
@@ -91,12 +95,8 @@ const getAll = async (req, res) => {
     start_created_at,
     end_created_at,
     is_organization_super_admin,
+    organization_id,
   } = req.query;
-
-  const orgId = req.user.organization?._id || null
-  // console.log(orgId);
-
-  
 
   try {
     const pageNo = util.defaultPageNo(page);
@@ -104,8 +104,8 @@ const getAll = async (req, res) => {
     const skip = (pageNo - 1) * pageSize;
 
     const query = { isDeleted: false };
-    if(orgId){
-      query.$or = [{organization: orgId}, {isOrganizationSuperAdmin: true}]
+    if (organization_id) {
+      query.organization = organization_id;
     }
 
     // Filter Organization Super Admin
@@ -190,10 +190,17 @@ const setUpPassword = async (req, res) => {
       }
     );
 
-    const org = await OrganizationModel.findById(orgId);
+    if (orgId) {
+      const org = await OrganizationModel.findById(orgId);
+      if (util.isEmpty(org)) {
+        return util.ResFail(req, res, "Organization not found.");
+      }
+    }
 
-    if (util.isEmpty(adminUser) || util.isEmpty(org)) {
-      return util.ResFail(req, res, "User or Organization not found.");
+    console.log(util.isEmpty(adminUser));
+
+    if (util.isEmpty(adminUser)) {
+      return util.ResFail(req, res, "User not found.");
     }
 
     if (util.notEmpty(adminUser.password)) {
@@ -458,21 +465,20 @@ const update = async (req, res) => {
     }
 
     const checkUserEmailExist = await AdminUsersModel.findOne({
-      email: email, _id: {$ne: id}
+      email: email,
+      _id: { $ne: id },
     });
 
     if (util.notEmpty(checkUserEmailExist)) {
       return util.ResFail(req, res, "Email is already exist.");
-    }    
-
-
+    }
 
     const checkExistRole = await RoleModel.findById(roleId);
-        if (util.isEmpty(checkExistRole)) {
+    if (util.isEmpty(checkExistRole)) {
       return util.ResFail(req, res, "Role not founc.");
-    }    
+    }
 
-        if (user.isSuperAdmin || user.isOrganizationSuperAdmin) {
+    if (user.isSuperAdmin || user.isOrganizationSuperAdmin) {
       return util.ResFail(
         req,
         res,
@@ -485,7 +491,7 @@ const update = async (req, res) => {
     user.lastName = lastName;
     user.username = username || firstName + " " + lastName;
     user.email = email;
-    user.role = roleId
+    user.role = roleId;
 
     await user.save();
 
@@ -509,5 +515,5 @@ module.exports = {
   deleteUser,
   create,
   requestLinkSetUpPasswordOrgUser,
-  update
+  update,
 };

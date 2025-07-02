@@ -309,7 +309,7 @@ const rejectRequest = async (req, res) => {
 const approveRequest = async (req, res) => {
   const { _id } = req.user;
   const { id } = req.params;
-  // const { roleId } = req.body;
+
 
   try {
     const existingOrg = await OrganizationsRequestModel.findOne({
@@ -333,7 +333,7 @@ const approveRequest = async (req, res) => {
       description: existingOrg.orgDescription,
     });
 
-    const role = await RoleModel.findOne({name: "Organization Admin"});
+    const role = await RoleModel.findOne({name: "Organization Super Admin"});
 
     if (util.isEmpty(role)) {
       return util.ResFail(req, res, "Invalid role.");

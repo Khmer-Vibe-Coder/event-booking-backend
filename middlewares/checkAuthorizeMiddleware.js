@@ -8,7 +8,9 @@ const checkAuthorize = (right) => {
       return
     }
     const rights = user.role?.rights.map((r) => r.name);
-    const isAllowed = rights.includes(right);
+    console.log(rights, right);
+    
+    const isAllowed = rights.includes(right.toString());
 
     if (!isAllowed) {
       return util.ResFail(

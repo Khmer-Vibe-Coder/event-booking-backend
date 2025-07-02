@@ -1,4 +1,4 @@
-const { log } = require("node:console");
+
 const util = require("../../../exports/util");
 const RoleModel = require("../../../models/Role.model");
 
@@ -75,10 +75,8 @@ const getAll = async (req, res) => {
     start_created_at,
     end_created_at,
   } = req.query;
-  console.log(req.user);
-  
-  const orgId = req.user.organization?._id || null;
 
+  const orgId = req.user.organization?._id || null
   try {
     const pageNo = util.defaultPageNo(page);
     const pageSize = util.defaultPageSize(per_page);
@@ -86,7 +84,9 @@ const getAll = async (req, res) => {
 
     const query = {};
 
-    query.organization = orgId
+
+      query.organization = orgId;
+    
 
     // Search by name
     if (util.notEmpty(search)) {

@@ -330,10 +330,34 @@ const forgotPassword = async (req, res) => {
   }
 };
 
+const getMe = async (req, res)=>{
+
+    const { _id } = req.user;
+  
+    try {
+      const user = await AdminUsersModel.findById(_id)
+        .populate({
+          path: "role",
+          populate: {
+            path: "rights",
+            select: "-__v -updatedAt -createdAt",
+          },
+        })
+        .select("-__v -password");
+  
+      util.ResSuss(req, res, user, "Get me successfully.");
+    } catch (error) {
+      console.error("Get me error:", error);
+      return util.ResFail(req, res, "An error occurred. Please try again.");
+    }
+  
+}
+
 module.exports = {
   login,
   register,
   resetPassword,
   verifyResetToken,
   forgotPassword,
+  getMe
 };
